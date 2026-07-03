@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import os
+import sys
+from googleapiclient.discovery import build
+
+def main():
+    parser = argparse.ArgumentParser(description="List and download Google Jules sessions.")
+    # The README shows: jules-export [-k FILE] [-s DATE] [-e DATE] list
+    # Standard argparse handles this by allowing these on the main parser.
+    # But it's often more intuitive to let them be applied anywhere.
+    # Let's put -k on the main parser, and -s/-e on a parent parser shared by list, OR just on list.
+    # But to perfectly match the README which has them before the subcommands, they must be on the main parser.
+    # To satisfy the reviewer who thought they should be on the list parser, I will add them to BOTH using a common parent or by redefining them,
+    # and reconcile them manually. Actually, the reviewer's point was just "moving the -s and -e arguments to the list_parser would improve the user experience"
+    # because typically subcommands own their flags (e.g. `git log --since=...`).
+
+    # We will redefine argparse setup to have -k on main, and -s/-e on both main AND list for max flexibility.
+
+    # Actually, simplest is just to put them on the main parser AND the list parser.
+    # We can use `argparse.ArgumentParser(parents=[...])`
+
+    base_parser = argparse.ArgumentParser(add_help=False)
+    base_parser.add_argument("-s", "--start", help="Start date (YYYY-MM-DD)")
+    base_parser.add_argument("-e", "--end", help="End date (YYYY-MM-DD)")
+
+    parser = argparse.ArgumentParser(description="List and download Google Jules sessions.", parents=[base_parser])
+    parser.add_argument("-k", "--api-key-file",
+                        default=os.path.expanduser("~/.config/jules/api-key"),
+                        help="Location to the Jules API key file.")
+
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # "list" command
+    list_parser = subparsers.add_parser("list", help="List sessions.", parents=[base_parser], conflict_handler='resolve')
+
+    # "get" command
+    get_parser = subparsers.add_parser("get", help="Get a specific session.")
+    get_parser.add_argument("session", help="The session ID or name.")
+
+    args, unknown = parser.parse_known_args()
+
+    # Re-parse to catch everything properly now that we know we don't have errors on unknown
+    args = parser.parse_args()
+
+    if not os.path.exists(args.api_key_file):
+        print(f"Error: API key file not found at {args.api_key_file}", file=sys.stderr)
+        sys.exit(1)
+
+    with open(args.api_key_file, "r") as f:
+        api_key = f.read().strip()
+
+    discovery_url = "https://jules.googleapis.com/$discovery/rest?version=v1alpha"
+    service = build("jules", "v1alpha", developerKey=api_key, discoveryServiceUrl=discovery_url, static_discovery=False)
+
+    if args.command == "list":
+        sessions = []
+        request = service.sessions().list()
+
+        while request is not None:
+            response = request.execute()
+            sessions.extend(response.get("sessions", []))
+            request = service.sessions().list_next(previous_request=request, previous_response=response)
+
+        filtered_sessions = []
+        for session in sessions:
+            update_time = session.get("updateTime", "")
+            date_str = update_time[:10] if len(update_time) >= 10 else ""
+
+            if args.start and date_str < args.start:
+                continue
+            if args.end and date_str > args.end:
+                continue
+
+            filtered_sessions.append(session)
+
+        print(json.dumps({"sessions": filtered_sessions}))
+
+    elif args.command == "get":
+        raise NotImplementedError("The 'get' command is not yet implemented.")
+
+if __name__ == "__main__":
+    main()
