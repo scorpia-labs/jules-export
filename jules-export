@@ -5,7 +5,7 @@ import json
 import datetime
 import os
 import sys
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build_from_document
 import httplib2
 
 
@@ -16,8 +16,7 @@ class ApiKeyHttp(httplib2.Http):
 
     def request(self, uri, method="GET", body=None, headers=None, redirections=httplib2.DEFAULT_MAX_REDIRECTS, connection_type=None):
         headers = headers or {}
-        if "$discovery/rest" not in uri:
-            headers["X-Goog-Api-Key"] = self.api_key
+        headers["X-Goog-Api-Key"] = self.api_key
         return super().request(uri, method, body, headers, redirections, connection_type)
 
 
@@ -76,8 +75,15 @@ def main():
         api_key = f.read().strip()
 
     discovery_url = "https://jules.googleapis.com/$discovery/rest?version=v1alpha"
+    # Fetch discovery document without API key header
+    resp, content_bytes = httplib2.Http().request(discovery_url)
+    if resp.status != 200:
+        print(f"Error fetching discovery document: {resp.status} - {content_bytes}", file=sys.stderr)
+        sys.exit(1)
+
+    discovery_doc = json.loads(content_bytes)
     http = ApiKeyHttp(api_key)
-    service = build("jules", "v1alpha", http=http, discoveryServiceUrl=discovery_url, static_discovery=False)
+    service = build_from_document(discovery_doc, http=http)
 
     if args.command == "list":
         sessions = []
