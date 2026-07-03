@@ -5,6 +5,18 @@ import json
 import os
 import sys
 from googleapiclient.discovery import build
+import httplib2
+
+
+class ApiKeyHttp(httplib2.Http):
+    def __init__(self, api_key, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.api_key = api_key
+
+    def request(self, uri, method="GET", body=None, headers=None, redirections=httplib2.DEFAULT_MAX_REDIRECTS, connection_type=None):
+        headers = headers or {}
+        headers["X-Goog-Api-Key"] = self.api_key
+        return super().request(uri, method, body, headers, redirections, connection_type)
 
 def main():
     parser = argparse.ArgumentParser(description="List and download Google Jules sessions.")
@@ -53,7 +65,8 @@ def main():
         api_key = f.read().strip()
 
     discovery_url = "https://jules.googleapis.com/$discovery/rest?version=v1alpha"
-    service = build("jules", "v1alpha", developerKey=api_key, discoveryServiceUrl=discovery_url, static_discovery=False)
+    http = ApiKeyHttp(api_key)
+    service = build("jules", "v1alpha", http=http, discoveryServiceUrl=discovery_url, static_discovery=False)
 
     if args.command == "list":
         sessions = []
