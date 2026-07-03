@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import datetime
 import os
 import sys
 from googleapiclient.discovery import build
@@ -18,6 +19,15 @@ class ApiKeyHttp(httplib2.Http):
         if "$discovery/rest" not in uri:
             headers["X-Goog-Api-Key"] = self.api_key
         return super().request(uri, method, body, headers, redirections, connection_type)
+
+
+def parse_date(date_str):
+    try:
+        # Assuming format YYYY-MM-DD
+        datetime.datetime.strptime(date_str, '%Y-%m-%d')
+        return date_str
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Invalid date format: '{date_str}'. Expected YYYY-MM-DD.")
 
 def main():
     parser = argparse.ArgumentParser(description="List and download Google Jules sessions.")
@@ -36,8 +46,8 @@ def main():
     # We can use `argparse.ArgumentParser(parents=[...])`
 
     base_parser = argparse.ArgumentParser(add_help=False)
-    base_parser.add_argument("-s", "--start", help="Start date (YYYY-MM-DD)")
-    base_parser.add_argument("-e", "--end", help="End date (YYYY-MM-DD)")
+    base_parser.add_argument("-s", "--start", help="Start date (YYYY-MM-DD)", type=parse_date)
+    base_parser.add_argument("-e", "--end", help="End date (YYYY-MM-DD)", type=parse_date)
 
     parser = argparse.ArgumentParser(description="List and download Google Jules sessions.", parents=[base_parser])
     parser.add_argument("-k", "--api-key-file",
