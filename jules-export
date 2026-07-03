@@ -15,7 +15,8 @@ class ApiKeyHttp(httplib2.Http):
 
     def request(self, uri, method="GET", body=None, headers=None, redirections=httplib2.DEFAULT_MAX_REDIRECTS, connection_type=None):
         headers = headers or {}
-        headers["X-Goog-Api-Key"] = self.api_key
+        if "$discovery/rest" not in uri:
+            headers["X-Goog-Api-Key"] = self.api_key
         return super().request(uri, method, body, headers, redirections, connection_type)
 
 def main():
