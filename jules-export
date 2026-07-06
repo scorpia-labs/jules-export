@@ -12,12 +12,12 @@ import httplib2
 class ApiKeyHttp(httplib2.Http):
     def __init__(self, api_key, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.api_key = api_key
+        self._api_key = api_key
 
-    def request(self, uri, method="GET", body=None, headers=None, redirections=httplib2.DEFAULT_MAX_REDIRECTS, connection_type=None):
-        headers = headers or {}
-        headers["X-Goog-Api-Key"] = self.api_key
-        return super().request(uri, method, body, headers, redirections, connection_type)
+    def request(self, *args, **kwargs):
+        headers = kwargs.setdefault("headers", {})
+        headers["X-Goog-Api-Key"] = self._api_key
+        return super().request(*args, **kwargs)
 
 
 def parse_date(date_str):
