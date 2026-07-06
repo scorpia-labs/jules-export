@@ -9,7 +9,7 @@ The tool writes JSON output to stdout.
 List sessions:
 
 ```
-jules-export [-k FILE] [-s DATE] [-e DATE] list
+jules-export [-k FILE] list [-s DATE] [-e DATE] [-f FILTER]
 ```
 
 Get a specific session:
@@ -26,3 +26,5 @@ jules-export [-k FILE] get SESSION
    the specified date (format: `YYYY-MM-DD`). Default is to not limit by date.
 *  `-e DATE`, `--end DATE`: Limit the latest date in the `list` output to
    the specified date (format: `YYYY-MM-DD`). Default is to not limit by date.
+*  `-f FILTER`, `--filter FILTER`: A filter expression to pass to the Jules API
+   to limit the `list` output (e.g. `archived = true`).
