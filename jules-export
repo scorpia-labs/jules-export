@@ -31,7 +31,10 @@ def parse_date(date_str):
         datetime.datetime.strptime(date_str, '%Y-%m-%d')
         return date_str
     except ValueError:
-        raise argparse.ArgumentTypeError(f"Invalid date format: '{date_str}'. Expected YYYY-MM-DD.")
+        raise argparse.ArgumentTypeError(
+            f"Invalid date format: {date_str!r}. Expected YYYY-MM-DD."
+        )
+
 
 def main():
     parser = argparse.ArgumentParser(add_help=False)
@@ -61,7 +64,10 @@ def main():
     args = parser.parse_args()
 
     if not os.path.exists(args.api_key_file):
-        print(f"Error: API key file not found at {args.api_key_file}", file=sys.stderr)
+        print(
+            f"Error: API key file not found at {args.api_key_file}",
+            file=sys.stderr
+        )
         sys.exit(1)
 
     with open(args.api_key_file, "r") as f:
@@ -71,7 +77,13 @@ def main():
     discovery_http = httplib2.Http()
     resp, content_bytes = discovery_http.request(DISCOVERY_URI)
     if resp.status != 200:
-        print(f"Error fetching discovery document: {resp.status} - {content_bytes}", file=sys.stderr)
+        print(
+            (
+                "Error fetching discovery document:"
+                f" {resp.status} - {content_bytes}"
+            ),
+            file=sys.stderr
+        )
         sys.exit(1)
     discovery_http.close()
 
@@ -86,7 +98,9 @@ def main():
         while request is not None:
             response = request.execute()
             sessions.extend(response.get("sessions", []))
-            request = service.sessions().list_next(previous_request=request, previous_response=response)
+            request = service.sessions().list_next(
+                previous_request=request, previous_response=response
+            )
 
         filtered_sessions = []
         for session in sessions:
@@ -104,6 +118,7 @@ def main():
 
     elif args.command == "get":
         raise NotImplementedError("The 'get' command is not yet implemented.")
+
 
 if __name__ == "__main__":
     main()
