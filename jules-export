@@ -29,42 +29,30 @@ def parse_date(date_str):
         raise argparse.ArgumentTypeError(f"Invalid date format: '{date_str}'. Expected YYYY-MM-DD.")
 
 def main():
-    parser = argparse.ArgumentParser(description="List and download Google Jules sessions.")
-    # The README shows: jules-export [-k FILE] [-s DATE] [-e DATE] list
-    # Standard argparse handles this by allowing these on the main parser.
-    # But it's often more intuitive to let them be applied anywhere.
-    # Let's put -k on the main parser, and -s/-e on a parent parser shared by list, OR just on list.
-    # But to perfectly match the README which has them before the subcommands, they must be on the main parser.
-    # To satisfy the reviewer who thought they should be on the list parser, I will add them to BOTH using a common parent or by redefining them,
-    # and reconcile them manually. Actually, the reviewer's point was just "moving the -s and -e arguments to the list_parser would improve the user experience"
-    # because typically subcommands own their flags (e.g. `git log --since=...`).
-
-    # We will redefine argparse setup to have -k on main, and -s/-e on both main AND list for max flexibility.
-
-    # Actually, simplest is just to put them on the main parser AND the list parser.
-    # We can use `argparse.ArgumentParser(parents=[...])`
-
-    base_parser = argparse.ArgumentParser(add_help=False)
-    base_parser.add_argument("-s", "--start", help="Start date (YYYY-MM-DD)", type=parse_date)
-    base_parser.add_argument("-e", "--end", help="End date (YYYY-MM-DD)", type=parse_date)
-
-    parser = argparse.ArgumentParser(description="List and download Google Jules sessions.", parents=[base_parser])
-    parser.add_argument("-k", "--api-key-file",
-                        default=os.path.expanduser("~/.config/jules/api-key"),
-                        help="Location to the Jules API key file.")
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(
+        "-k", "--api-key-file",
+        default=os.path.expanduser("~/.config/jules/api-key"),
+        help="Location to the Jules API key file."
+    )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # "list" command
-    list_parser = subparsers.add_parser("list", help="List sessions.", parents=[base_parser], conflict_handler='resolve')
+    list_parser = subparsers.add_parser("list", help="List sessions.")
+    list_parser.add_argument(
+        "-s", "--start",
+        help="Start date (YYYY-MM-DD)", type=parse_date
+    )
+    list_parser.add_argument(
+        "-e", "--end",
+        help="End date (YYYY-MM-DD)", type=parse_date
+    )
 
     # "get" command
     get_parser = subparsers.add_parser("get", help="Get a specific session.")
     get_parser.add_argument("session", help="The session ID or name.")
 
-    args, unknown = parser.parse_known_args()
-
-    # Re-parse to catch everything properly now that we know we don't have errors on unknown
     args = parser.parse_args()
 
     if not os.path.exists(args.api_key_file):
