@@ -56,6 +56,10 @@ def main():
         "-e", "--end",
         help="End date (YYYY-MM-DD)", type=parse_date
     )
+    list_parser.add_argument(
+        "-f", "--filter",
+        help="Filter expression to limit the output"
+    )
 
     # "get" command
     get_parser = subparsers.add_parser("get", help="Get a specific session.")
@@ -93,7 +97,11 @@ def main():
 
     if args.command == "list":
         sessions = []
-        request = service.sessions().list()
+        kwargs = {}
+        if args.filter:
+            kwargs["filter"] = args.filter
+
+        request = service.sessions().list(**kwargs)
 
         while request is not None:
             response = request.execute()
