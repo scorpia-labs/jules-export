@@ -8,6 +8,7 @@ import sys
 
 
 from googleapiclient.discovery import build_from_document
+from googleapiclient.errors import HttpError
 import httplib2
 
 
@@ -125,7 +126,12 @@ def main():
         print(json.dumps({"sessions": filtered_sessions}))
 
     elif args.command == "get":
-        raise NotImplementedError("The 'get' command is not yet implemented.")
+        try:
+            response = service.sessions().get(name=args.session).execute()
+            print(json.dumps(response))
+        except HttpError as e:
+            print(f"Error fetching session: {e}", file=sys.stderr)
+            sys.exit(1)
 
 
 if __name__ == "__main__":
