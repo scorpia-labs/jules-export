@@ -37,7 +37,7 @@ def parse_date(date_str):
         )
 
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument(
         "-k", "--api-key-file",
@@ -66,18 +66,22 @@ def main():
     get_parser = subparsers.add_parser("get", help="Get a specific session.")
     get_parser.add_argument("session", help="The session ID or name.")
 
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    if not os.path.exists(args.api_key_file):
+
+def get_api_key(api_key_file):
+    if not os.path.exists(api_key_file):
         print(
-            f"Error: API key file not found at {args.api_key_file}",
+            f"Error: API key file not found at {api_key_file}",
             file=sys.stderr
         )
         sys.exit(1)
 
-    with open(args.api_key_file, "r") as f:
-        api_key = f.read().strip()
+    with open(api_key_file, "r") as f:
+        return f.read().strip()
 
+
+def create_jules_service(api_key):
     # Fetch discovery document without API key header
     discovery_http = httplib2.Http()
     resp, content_bytes = discovery_http.request(DISCOVERY_URI)
@@ -94,44 +98,58 @@ def main():
 
     discovery_doc = json.loads(content_bytes)
     http = ApiKeyHttp(api_key)
-    service = build_from_document(discovery_doc, http=http)
+    return build_from_document(discovery_doc, http=http)
+
+
+def handle_list(service, args):
+    sessions = []
+    kwargs = {}
+    if args.filter:
+        kwargs["filter"] = args.filter
+
+    request = service.sessions().list(**kwargs)
+
+    while request is not None:
+        response = request.execute()
+        sessions.extend(response.get("sessions", []))
+        request = service.sessions().list_next(
+            previous_request=request, previous_response=response
+        )
+
+    filtered_sessions = []
+    for session in sessions:
+        update_time = session.get("updateTime", "")
+        date_str = update_time[:10] if len(update_time) >= 10 else ""
+
+        if args.start and date_str < args.start:
+            continue
+        if args.end and date_str > args.end:
+            continue
+
+        filtered_sessions.append(session)
+
+    print(json.dumps({"sessions": filtered_sessions}))
+
+
+def handle_get(service, args):
+    try:
+        response = service.sessions().get(name=args.session).execute()
+        print(json.dumps(response))
+    except HttpError as e:
+        print(f"Error fetching session: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def main():
+    args = parse_args()
+
+    api_key = get_api_key(args.api_key_file)
+    service = create_jules_service(api_key)
 
     if args.command == "list":
-        sessions = []
-        kwargs = {}
-        if args.filter:
-            kwargs["filter"] = args.filter
-
-        request = service.sessions().list(**kwargs)
-
-        while request is not None:
-            response = request.execute()
-            sessions.extend(response.get("sessions", []))
-            request = service.sessions().list_next(
-                previous_request=request, previous_response=response
-            )
-
-        filtered_sessions = []
-        for session in sessions:
-            update_time = session.get("updateTime", "")
-            date_str = update_time[:10] if len(update_time) >= 10 else ""
-
-            if args.start and date_str < args.start:
-                continue
-            if args.end and date_str > args.end:
-                continue
-
-            filtered_sessions.append(session)
-
-        print(json.dumps({"sessions": filtered_sessions}))
-
+        handle_list(service, args)
     elif args.command == "get":
-        try:
-            response = service.sessions().get(name=args.session).execute()
-            print(json.dumps(response))
-        except HttpError as e:
-            print(f"Error fetching session: {e}", file=sys.stderr)
-            sys.exit(1)
+        handle_get(service, args)
 
 
 if __name__ == "__main__":
