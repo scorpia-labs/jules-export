@@ -69,9 +69,15 @@ def parse_args():
     get_parser.add_argument("session", help="The session ID or name.")
 
     # "timeline" command
-    timeline_parser = subparsers.add_parser("timeline", help="View a unified timeline of activities.")
+    timeline_parser = subparsers.add_parser(
+        "timeline", help="View a unified timeline of activities."
+    )
     timeline_parser.add_argument(
-        "repo", nargs="?", default=".", help="Local path to the Git repository (defaults to current directory)."
+        "repo", nargs="?", default=".",
+        help=(
+            "Local path to the Git repository"
+            " (defaults to current directory)."
+        )
     )
     timeline_parser.add_argument(
         "-g", "--github-key-file",
@@ -173,7 +179,10 @@ def get_github_repo_from_git(repo_path):
             text=True
         )
     except subprocess.CalledProcessError:
-        print(f"Error: Directory '{repo_path}' is not a Git repository.", file=sys.stderr)
+        print(
+            f"Error: Directory '{repo_path}' is not a Git repository.",
+            file=sys.stderr
+        )
         sys.exit(1)
     except FileNotFoundError:
         print(f"Error: Directory '{repo_path}' not found.", file=sys.stderr)
@@ -189,7 +198,13 @@ def get_github_repo_from_git(repo_path):
         )
         url = result.stdout.strip()
     except subprocess.CalledProcessError:
-        print("Error: Could not determine 'origin' remote URL. Make sure an origin exists.", file=sys.stderr)
+        print(
+            (
+                "Error: Could not determine 'origin' remote URL."
+                " Make sure an origin exists."
+            ),
+            file=sys.stderr
+        )
         sys.exit(1)
 
     # Parse standard GitHub URLs
@@ -197,10 +212,17 @@ def get_github_repo_from_git(repo_path):
     # git@github.com:user/repo.git
     match = re.search(r"github\.com[:/](.+?/.+?)(?:\.git)?$", url)
     if not match:
-        print(f"Error: Remote origin URL '{url}' does not appear to be a GitHub repository.", file=sys.stderr)
+        print(
+            (
+                f"Error: Remote origin URL '{url}' does not appear to be"
+                " a GitHub repository."
+            ),
+            file=sys.stderr
+        )
         sys.exit(1)
 
     return match.group(1)
+
 
 def get_jules_events(service, repo_name, start_date, end_date):
     """Fetches and formats session events from Jules API."""
@@ -219,7 +241,10 @@ def get_jules_events(service, repo_name, start_date, end_date):
                 previous_request=request, previous_response=response
             )
         except HttpError as e:
-            print(f"Warning: Could not fetch Jules sessions: {e}", file=sys.stderr)
+            print(
+                f"Warning: Could not fetch Jules sessions: {e}",
+                file=sys.stderr
+            )
             break
 
     for session in sessions:
@@ -278,7 +303,9 @@ def get_jules_events(service, repo_name, start_date, end_date):
 
 
 def normalize_timestamp(ts_str):
-    """Normalizes an ISO 8601 string to strict UTC format: YYYY-MM-DDTHH:MM:SSZ"""
+    """Normalizes an ISO 8601 string to strict UTC format:
+    YYYY-MM-DDTHH:MM:SSZ
+    """
     if not ts_str:
         return ""
     # E.g. 2026-07-07T01:38:38-04:00 (from git)
@@ -404,22 +431,40 @@ def get_github_events(github_token, repo_name, start_date, end_date):
             # Merged/Closed event
             if pr.closed_at:
                 event_type = "pr_merged" if pr.merged_at else "pr_closed"
-                closed_timestamp = pr.merged_at if pr.merged_at else pr.closed_at
+                closed_timestamp = (
+                    pr.merged_at if pr.merged_at else pr.closed_at
+                )
                 events.append({
-                    "timestamp": closed_timestamp.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                    "timestamp": closed_timestamp.strftime(
+                        '%Y-%m-%dT%H:%M:%SZ'
+                    ),
                     "source": "github",
                     "type": event_type,
-                    "actor": pr.merged_by.login if (pr.merged_at and pr.merged_by) else pr.user.login,
-                    "description": f"{'Merged' if pr.merged_at else 'Closed'} PR: {pr.title}",
+                    "actor": (
+                        pr.merged_by.login
+                        if (pr.merged_at and pr.merged_by)
+                        else pr.user.login
+                    ),
+                    "description": (
+                        f"{'Merged' if pr.merged_at else 'Closed'}"
+                        f" PR: {pr.title}"
+                    ),
                     "id": pr.number,
                     "references": {
                         "jules": [],
                         "github": [pr.number],
-                        "git": [pr.merge_commit_sha] if pr.merge_commit_sha else []
+                        "git": (
+                            [pr.merge_commit_sha]
+                            if pr.merge_commit_sha
+                            else []
+                        )
                     }
                 })
     except Exception as e:
-        print(f"Warning: Could not fetch GitHub PRs for {repo_name}: {e}", file=sys.stderr)
+        print(
+            f"Warning: Could not fetch GitHub PRs for {repo_name}: {e}",
+            file=sys.stderr
+        )
 
     return events
 
@@ -431,14 +476,21 @@ def handle_timeline(service, args):
     if os.path.exists(args.github_key_file):
         with open(args.github_key_file, "r") as f:
             github_token = f.read().strip()
-    elif args.github_key_file != os.path.expanduser("~/.config/jules/github-key"):
-        print(f"Error: GitHub key file not found at {args.github_key_file}", file=sys.stderr)
+    elif args.github_key_file != os.path.expanduser(
+        "~/.config/jules/github-key"
+    ):
+        print(
+            f"Error: GitHub key file not found at {args.github_key_file}",
+            file=sys.stderr
+        )
         sys.exit(1)
 
     all_events = []
 
     # 1. Fetch GitHub events
-    github_events = get_github_events(github_token, repo_name, args.start, args.end)
+    github_events = get_github_events(
+        github_token, repo_name, args.start, args.end
+    )
     all_events.extend(github_events)
 
     # 2. Fetch Jules events
